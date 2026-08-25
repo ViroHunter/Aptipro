@@ -13,6 +13,10 @@ export const Navbar = ({ activeTab, setActiveTab, onFacultyLogin }) => {
   const [isFacultyAuthOpen, setIsFacultyAuthOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
+  // Remember authenticated state for current session
+  const [isAdminAuth, setIsAdminAuth] = useState(() => sessionStorage.getItem('aptipro_admin_auth') === 'true');
+  const [isFacultyAuth, setIsFacultyAuth] = useState(() => sessionStorage.getItem('aptipro_faculty_auth') === 'true');
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Zap },
     { id: 'mock', label: 'Placement Mocks', icon: FileCheck },
@@ -34,9 +38,17 @@ export const Navbar = ({ activeTab, setActiveTab, onFacultyLogin }) => {
 
   const handleTabClick = (item) => {
     if (item.isAdmin && activeTab !== 'admin') {
-      setIsAdminAuthOpen(true);
+      if (isAdminAuth) {
+        setActiveTab('admin');
+      } else {
+        setIsAdminAuthOpen(true);
+      }
     } else if (item.isFaculty && activeTab !== 'faculty') {
-      setIsFacultyAuthOpen(true);
+      if (isFacultyAuth) {
+        setActiveTab('faculty');
+      } else {
+        setIsFacultyAuthOpen(true);
+      }
     } else {
       setActiveTab(item.id);
     }
@@ -85,10 +97,10 @@ export const Navbar = ({ activeTab, setActiveTab, onFacultyLogin }) => {
                 >
                   <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : ''}`} />
                   {item.label}
-                  {item.isAdmin && activeTab !== 'admin' && (
+                  {item.isAdmin && !isAdminAuth && (
                     <Lock className="w-3 h-3 text-amber-500" />
                   )}
-                  {item.isFaculty && activeTab !== 'faculty' && (
+                  {item.isFaculty && !isFacultyAuth && (
                     <Lock className="w-3 h-3 text-violet-500" />
                   )}
                 </button>
@@ -207,6 +219,8 @@ export const Navbar = ({ activeTab, setActiveTab, onFacultyLogin }) => {
         isOpen={isFacultyAuthOpen}
         onClose={() => setIsFacultyAuthOpen(false)}
         onAuthenticated={(facultyDetails) => {
+          setIsFacultyAuth(true);
+          sessionStorage.setItem('aptipro_faculty_auth', 'true');
           if (onFacultyLogin) onFacultyLogin(facultyDetails);
           setActiveTab('faculty');
         }}
@@ -216,7 +230,11 @@ export const Navbar = ({ activeTab, setActiveTab, onFacultyLogin }) => {
       <AdminAuthModal
         isOpen={isAdminAuthOpen}
         onClose={() => setIsAdminAuthOpen(false)}
-        onAuthenticated={() => setActiveTab('admin')}
+        onAuthenticated={() => {
+          setIsAdminAuth(true);
+          sessionStorage.setItem('aptipro_admin_auth', 'true');
+          setActiveTab('admin');
+        }}
       />
     </>
   );

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Zap, BookOpen, Sliders, Award, Flame, Crown, User, School, LogIn, LogOut, Edit3, Trophy, ShieldCheck, Lock, GraduationCap } from 'lucide-react';
+import { Zap, BookOpen, Sliders, Award, Flame, Crown, User, School, LogIn, LogOut, Edit3, Trophy, ShieldCheck, Lock, GraduationCap, FileCheck } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { useApp } from '../context/AppContext';
 import { AuthModal } from './Auth/AuthModal';
@@ -15,6 +15,7 @@ export const Navbar = ({ activeTab, setActiveTab, onFacultyLogin }) => {
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Zap },
+    { id: 'mock', label: 'Placement Mocks', icon: FileCheck },
     { id: 'leaderboard', label: 'Rankings', icon: Trophy },
     { id: 'formulas', label: 'Formula Deck', icon: BookOpen },
     { id: 'custom', label: 'Custom Test', icon: Sliders },

@@ -12,6 +12,8 @@ import { BadgesGrid } from './components/Achievements/BadgesGrid';
 import { Leaderboard } from './components/Leaderboard/Leaderboard';
 import { AdminPanel } from './components/Admin/AdminPanel';
 import { FacultyPortal } from './components/Faculty/FacultyPortal';
+import { MockExamSelector } from './components/MockExam/MockExamSelector';
+import { MockExamEngine } from './components/MockExam/MockExamEngine';
 import { AuthModal } from './components/Auth/AuthModal';
 import { QUESTIONS as INITIAL_QUESTIONS, generateDynamicQuestion } from './data/questionsData';
 import { useApp } from './context/AppContext';
@@ -21,6 +23,7 @@ export function App() {
   const { userProfile } = useApp();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeTest, setActiveTest] = useState(null);
+  const [activeMockExam, setActiveMockExam] = useState(null);
   const [facultyUser, setFacultyUser] = useState(null);
 
   const [questionBank, setQuestionBank] = useState(() => {
@@ -117,6 +120,17 @@ export function App() {
     );
   }
 
+  if (activeMockExam) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-['Plus_Jakarta_Sans',sans-serif]">
+        <MockExamEngine
+          mockExamConfig={activeMockExam}
+          onExit={() => setActiveMockExam(null)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-['Plus_Jakarta_Sans',sans-serif]">
       <Navbar
@@ -165,6 +179,13 @@ export function App() {
 
             <CategoryGrid onSelectCategory={handleStartCategoryPractice} />
           </div>
+        )}
+
+        {activeTab === 'mock' && (
+          <MockExamSelector
+            questions={questionBank}
+            onStartMockExam={(config) => setActiveMockExam(config)}
+          />
         )}
 
         {activeTab === 'leaderboard' && <Leaderboard />}

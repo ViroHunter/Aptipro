@@ -27,8 +27,8 @@ export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onAppro
   const [certLookupResult, setCertLookupResult] = useState(null);
 
   // Passcode Management State
-  const [newAdminPass, setNewAdminPass] = useState(() => localStorage.getItem('aptipro_admin_passcode') || 'admin123');
-  const [newFacultyPass, setNewFacultyPass] = useState(() => localStorage.getItem('aptipro_faculty_passcode') || 'faculty123');
+  const [newAdminPass, setNewAdminPass] = useState(() => localStorage.getItem('aptipro_admin_passcode') || '');
+  const [newFacultyPass, setNewFacultyPass] = useState(() => localStorage.getItem('aptipro_faculty_passcode') || '');
   const [securityMsg, setSecurityMsg] = useState('');
 
   const handleUpdatePasscodes = (e) => {
@@ -42,18 +42,6 @@ export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onAppro
     playSound('correct', soundEnabled);
     setSecurityMsg('Passcodes updated successfully! New passcodes are active immediately.');
     setTimeout(() => setSecurityMsg(''), 4000);
-  };
-
-  const handleResetDefaultPasscodes = () => {
-    if (window.confirm('Reset both Admin and Faculty passcodes back to defaults (admin123 / faculty123)?')) {
-      localStorage.removeItem('aptipro_admin_passcode');
-      localStorage.removeItem('aptipro_faculty_passcode');
-      setNewAdminPass('admin123');
-      setNewFacultyPass('faculty123');
-      playSound('correct', soundEnabled);
-      setSecurityMsg('Passcodes reset back to default: admin123 & faculty123.');
-      setTimeout(() => setSecurityMsg(''), 4000);
-    }
   };
 
   // Filter pending questions
@@ -758,7 +746,6 @@ export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onAppro
                   required
                 />
               </div>
-              <span className="text-[11px] text-slate-400 mt-1 block">Default: <code className="text-indigo-400 font-mono">admin123</code></span>
             </div>
 
             <div>
@@ -776,18 +763,9 @@ export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onAppro
                   required
                 />
               </div>
-              <span className="text-[11px] text-slate-400 mt-1 block">Default: <code className="text-violet-400 font-mono">faculty123</code></span>
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={handleResetDefaultPasscodes}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-              >
-                Reset to Defaults
-              </button>
-
+            <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-800">
               <button
                 type="submit"
                 className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 transition flex items-center gap-2"

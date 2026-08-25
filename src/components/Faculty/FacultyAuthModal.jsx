@@ -1,28 +1,45 @@
 import React, { useState } from 'react';
-import { GraduationCap, Lock, Key, X } from 'lucide-react';
+import { GraduationCap, Lock, Key, X, Check, ShieldAlert } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { playSound } from '../../utils/audioUtils';
 
 export const FacultyAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
   const { soundEnabled } = useApp();
   const [passcode, setPasscode] = useState('');
+  const [confirmPasscode, setConfirmPasscode] = useState('');
   const [facultyName, setFacultyName] = useState('');
   const [department, setDepartment] = useState('');
   const [error, setError] = useState('');
 
   if (!isOpen) return null;
 
+  const savedPasscode = localStorage.getItem('aptipro_faculty_passcode');
+  const isFirstTimeSetup = !savedPasscode;
+
   const handleSubmit = (e) => {
     e.preventDefault();
+
     if (!facultyName.trim()) {
       setError('Please enter your Faculty Name.');
       return;
     }
 
-    const savedPass = localStorage.getItem('aptipro_faculty_passcode');
-    const expectedPass = savedPass ? savedPass : 'faculty123';
+    if (isFirstTimeSetup) {
+      if (!passcode.trim()) {
+        setError('Please enter a passcode.');
+        return;
+      }
+      if (passcode.length < 4) {
+        setError('Passcode must be at least 4 characters long.');
+        return;
+      }
+      if (passcode !== confirmPasscode) {
+        setError('Passcodes do not match! Please verify.');
+        return;
+      }
 
-    if (passcode.trim() === expectedPass) {
+      // Save custom faculty passcode on first time setup
+      localStorage.setItem('aptipro_faculty_passcode', passcode.trim());
       playSound('correct', soundEnabled);
       setError('');
       onAuthenticated({
@@ -31,8 +48,19 @@ export const FacultyAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
       });
       onClose();
     } else {
-      playSound('wrong', soundEnabled);
-      setError('Incorrect Faculty Passcode!');
+      // Login with existing custom faculty passcode
+      if (passcode.trim() === savedPasscode) {
+        playSound('correct', soundEnabled);
+        setError('');
+        onAuthenticated({
+          name: facultyName.trim(),
+          department: department.trim() || 'Computer Engineering'
+        });
+        onClose();
+      } else {
+        playSound('wrong', soundEnabled);
+        setError('Incorrect Faculty Passcode!');
+      }
     }
   };
 
@@ -47,14 +75,25 @@ export const FacultyAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
               <GraduationCap className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-lg font-extrabold text-white">Faculty Portal Login</h3>
-              <p className="text-xs text-slate-400">Question Contributor Access</p>
+              <h3 className="text-lg font-extrabold text-white">
+                {isFirstTimeSetup ? 'First-Time Faculty Setup' : 'Faculty Portal Login'}
+              </h3>
+              <p className="text-xs text-slate-400">
+                {isFirstTimeSetup ? 'Create your custom Faculty Passcode' : 'Question Contributor Access'}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800">
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {isFirstTimeSetup && (
+          <div className="p-3.5 rounded-2xl bg-violet-500/10 border border-violet-500/30 text-violet-200 text-xs font-semibold flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-violet-400 flex-shrink-0" />
+            <span>No default passcodes exist. Create your secure Faculty Passcode below to initialize access.</span>
+          </div>
+        )}
 
         {error && (
           <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-900 text-rose-300 text-xs font-semibold">
@@ -92,7 +131,7 @@ export const FacultyAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
 
           <div>
             <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
-              Enter Faculty Passcode
+              {isFirstTimeSetup ? 'Create Faculty Passcode' : 'Enter Faculty Passcode'}
             </label>
             <div className="relative">
               <Key className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
@@ -100,18 +139,37 @@ export const FacultyAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
                 type="password"
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
-                placeholder="Enter passcode (faculty123)"
+                placeholder={isFirstTimeSetup ? 'Create new passcode...' : 'Enter passcode...'}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-xs font-bold text-violet-400 focus:outline-none focus:border-violet-500"
+                required
               />
             </div>
-            <span className="text-[11px] text-slate-500 mt-1 block">Default passcode: <code className="text-violet-400 font-mono">faculty123</code></span>
           </div>
+
+          {isFirstTimeSetup && (
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                Confirm Faculty Passcode
+              </label>
+              <div className="relative">
+                <Check className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
+                <input
+                  type="password"
+                  value={confirmPasscode}
+                  onChange={(e) => setConfirmPasscode(e.target.value)}
+                  placeholder="Re-enter passcode to confirm..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-xs font-bold text-violet-400 focus:outline-none focus:border-violet-500"
+                  required
+                />
+              </div>
+            </div>
+          )}
 
           <button
             type="submit"
             className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-extrabold text-xs shadow-lg shadow-violet-600/30 transition flex items-center justify-center gap-2"
           >
-            <Lock className="w-4 h-4" /> Enter Faculty Portal
+            <Lock className="w-4 h-4" /> {isFirstTimeSetup ? 'Set Passcode & Enter Faculty Portal' : 'Enter Faculty Portal'}
           </button>
         </form>
 

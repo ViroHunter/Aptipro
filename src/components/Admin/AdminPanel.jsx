@@ -3,6 +3,7 @@ import { ShieldCheck, Database, Users, Award, Plus, Trash2, Search, CheckCircle2
 import { CATEGORIES } from '../../data/questionsData';
 import { useApp } from '../../context/AppContext';
 import { playSound } from '../../utils/audioUtils';
+import { updateGlobalPasscodes } from '../../utils/cloudSecurityService';
 
 export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onApproveQuestion, onRejectQuestion }) => {
   const { stats, testHistory, userProfile, soundEnabled } = useApp();
@@ -31,16 +32,17 @@ export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onAppro
   const [newFacultyPass, setNewFacultyPass] = useState(() => localStorage.getItem('aptipro_faculty_passcode') || '');
   const [securityMsg, setSecurityMsg] = useState('');
 
-  const handleUpdatePasscodes = (e) => {
+  const handleUpdatePasscodes = async (e) => {
     e.preventDefault();
     if (!newAdminPass.trim() || !newFacultyPass.trim()) {
       alert('Passcodes cannot be empty.');
       return;
     }
-    localStorage.setItem('aptipro_admin_passcode', newAdminPass.trim());
-    localStorage.setItem('aptipro_faculty_passcode', newFacultyPass.trim());
+
+    // Push passcodes globally to Centralized Cloud Security Store
+    await updateGlobalPasscodes(newAdminPass.trim(), newFacultyPass.trim());
     playSound('correct', soundEnabled);
-    setSecurityMsg('Passcodes updated successfully! New passcodes are active immediately.');
+    setSecurityMsg('Passcodes updated globally across all devices! Active immediately worldwide.');
     setTimeout(() => setSecurityMsg(''), 4000);
   };
 

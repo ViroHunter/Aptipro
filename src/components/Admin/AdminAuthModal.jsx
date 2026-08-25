@@ -1,20 +1,30 @@
-import React, { useState } from 'react';
-import { ShieldCheck, Lock, Key, X, Check, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, Lock, Key, X, Check, ShieldAlert, RefreshCw } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { playSound } from '../../utils/audioUtils';
+import { fetchGlobalPasscodes, updateGlobalPasscodes } from '../../utils/cloudSecurityService';
 
 export const AdminAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
   const { soundEnabled } = useApp();
   const [passcode, setPasscode] = useState('');
   const [confirmPasscode, setConfirmPasscode] = useState('');
   const [error, setError] = useState('');
+  const [isSyncing, setIsSyncing] = useState(true);
+
+  // Sync passcodes from Centralized Cloud Store on mount
+  useEffect(() => {
+    if (isOpen) {
+      setIsSyncing(true);
+      fetchGlobalPasscodes().finally(() => setIsSyncing(false));
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const savedPasscode = localStorage.getItem('aptipro_admin_passcode');
   const isFirstTimeSetup = !savedPasscode;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (isFirstTimeSetup) {
@@ -31,8 +41,10 @@ export const AdminAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
         return;
       }
 
-      // Save custom passcode on first time setup
-      localStorage.setItem('aptipro_admin_passcode', passcode.trim());
+      // Save custom passcode globally on cloud and locally
+      const currentFacultyPass = localStorage.getItem('aptipro_faculty_passcode') || '';
+      await updateGlobalPasscodes(passcode.trim(), currentFacultyPass);
+
       playSound('correct', soundEnabled);
       setError('');
       onAuthenticated();

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GraduationCap, Lock, Key, X, Check, ShieldAlert } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { playSound } from '../../utils/audioUtils';
+import { fetchGlobalPasscodes, updateGlobalPasscodes } from '../../utils/cloudSecurityService';
 
 export const FacultyAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
   const { soundEnabled } = useApp();
@@ -10,13 +11,22 @@ export const FacultyAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
   const [facultyName, setFacultyName] = useState('');
   const [department, setDepartment] = useState('');
   const [error, setError] = useState('');
+  const [isSyncing, setIsSyncing] = useState(true);
+
+  // Sync passcodes from Centralized Cloud Store on mount
+  useEffect(() => {
+    if (isOpen) {
+      setIsSyncing(true);
+      fetchGlobalPasscodes().finally(() => setIsSyncing(false));
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const savedPasscode = localStorage.getItem('aptipro_faculty_passcode');
   const isFirstTimeSetup = !savedPasscode;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!facultyName.trim()) {
@@ -38,8 +48,10 @@ export const FacultyAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
         return;
       }
 
-      // Save custom faculty passcode on first time setup
-      localStorage.setItem('aptipro_faculty_passcode', passcode.trim());
+      // Save custom faculty passcode globally on cloud and locally
+      const currentAdminPass = localStorage.getItem('aptipro_admin_passcode') || '';
+      await updateGlobalPasscodes(currentAdminPass, passcode.trim());
+
       playSound('correct', soundEnabled);
       setError('');
       onAuthenticated({

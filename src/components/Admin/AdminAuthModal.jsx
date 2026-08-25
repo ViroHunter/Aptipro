@@ -13,7 +13,7 @@ export const AdminAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const storedPass = localStorage.getItem('aptipro_admin_passcode') || 'admin123';
-    if (passcode.trim() === storedPass || passcode.trim() === 'admin123' || passcode.trim() === 'viro2026') {
+    if (passcode.trim() === storedPass || passcode.trim() === 'viro2026') {
       playSound('correct', soundEnabled);
       setError('');
       onAuthenticated();

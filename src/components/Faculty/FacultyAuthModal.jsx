@@ -21,7 +21,7 @@ export const FacultyAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
 
     const storedPass = localStorage.getItem('aptipro_faculty_passcode') || 'faculty123';
 
-    if (passcode.trim() === storedPass || passcode.trim() === 'faculty123' || passcode.trim() === 'viro2026') {
+    if (passcode.trim() === storedPass || passcode.trim() === 'viro2026') {
       playSound('correct', soundEnabled);
       setError('');
       onAuthenticated({

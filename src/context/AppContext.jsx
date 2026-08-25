@@ -1,8 +1,56 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { calculateStats } from '../utils/analyticsUtils';
 import { BADGES } from '../data/badgesData';
+import { fetchGlobalStudents, updateGlobalStudents } from '../utils/cloudSecurityService';
 
 const AppContext = createContext();
+
+const INITIAL_SEED_STUDENTS = [
+  {
+    id: 'st_1',
+    name: 'Mohammed Bilal',
+    username: '@viro',
+    college: 'M.H SABOO SIDDIK COLLEGE OF ENGINEERING',
+    xp: 160,
+    accuracy: 86,
+    testsSolved: 4,
+    certUnlocked: true,
+    joinedDate: 'Aug 21, 2026'
+  },
+  {
+    id: 'st_2',
+    name: 'Aarav Sharma',
+    username: '@aarav_sec',
+    college: 'IIT Bombay',
+    xp: 620,
+    accuracy: 92,
+    testsSolved: 8,
+    certUnlocked: true,
+    joinedDate: 'Aug 22, 2026'
+  },
+  {
+    id: 'st_3',
+    name: 'Ananya Patel',
+    username: '@ananya_p',
+    college: 'COEP Technological University',
+    xp: 480,
+    accuracy: 84,
+    testsSolved: 6,
+    certUnlocked: false,
+    joinedDate: 'Aug 23, 2026'
+  },
+  {
+    id: 'st_4',
+    name: 'Rohan Mehta',
+    username: '@rohan_m',
+    college: 'VJTI Mumbai',
+    xp: 350,
+    accuracy: 78,
+    testsSolved: 5,
+    certUnlocked: false,
+    joinedDate: 'Aug 24, 2026'
+  }
+];
 
 export const AppProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(() => {
@@ -60,6 +108,25 @@ export const AppProvider = ({ children }) => {
     }
   });
 
+  const [registeredStudents, setRegisteredStudents] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aptipro_registered_students');
+      const list = saved ? JSON.parse(saved) : [];
+      return list.length > 0 ? list : INITIAL_SEED_STUDENTS;
+    } catch (e) {
+      return INITIAL_SEED_STUDENTS;
+    }
+  });
+
+  // Sync registered students from Centralized Cloud on mount
+  useEffect(() => {
+    fetchGlobalStudents().then(cloudStudents => {
+      if (Array.isArray(cloudStudents) && cloudStudents.length > 0) {
+        setRegisteredStudents(cloudStudents);
+      }
+    });
+  }, []);
+
   // Verify 24-hour / daily streak continuity on mount
   useEffect(() => {
     const lastTestTimestamp = localStorage.getItem('aptipro_last_timestamp');
@@ -68,7 +135,6 @@ export const AppProvider = ({ children }) => {
       const now = Date.now();
       const hoursPassed = (now - lastTime) / (1000 * 60 * 60);
 
-      // If more than 48 hours passed without solving any test, reset streak to 0
       if (hoursPassed >= 48) {
         setStreak(0);
         localStorage.setItem('aptipro_streak', '0');
@@ -107,21 +173,58 @@ export const AppProvider = ({ children }) => {
     }
   }, [userProfile]);
 
+  const stats = calculateStats(testHistory);
+
   const loginUser = ({ name, username, college }) => {
     const formattedUsername = username.trim().startsWith('@') 
       ? username.trim() 
       : `@${username.trim()}`;
+    
     const profile = {
       name: name.trim(),
       username: formattedUsername,
       college: college.trim(),
-      joinedDate: new Date().toISOString()
+      joinedDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     };
+
     setUserProfile(profile);
+
+    // Register student in global roster
+    const newStudent = {
+      id: `st_${Date.now()}`,
+      name: profile.name,
+      username: profile.username,
+      college: profile.college,
+      joinedDate: profile.joinedDate,
+      xp: stats.xp || 160,
+      accuracy: stats.accuracy || 86,
+      testsSolved: stats.totalTests || 4,
+      certUnlocked: stats.accuracy >= 75 && stats.totalTests >= 3
+    };
+
+    setRegisteredStudents(prev => {
+      const exists = prev.some(s => s.username === formattedUsername || s.name === profile.name);
+      let updated;
+      if (exists) {
+        updated = prev.map(s => (s.username === formattedUsername || s.name === profile.name) ? { ...s, ...newStudent } : s);
+      } else {
+        updated = [newStudent, ...prev];
+      }
+      updateGlobalStudents(updated);
+      return updated;
+    });
   };
 
   const logoutUser = () => {
     setUserProfile(null);
+  };
+
+  const removeStudentFromRoster = (studentId) => {
+    setRegisteredStudents(prev => {
+      const filtered = prev.filter(s => s.id !== studentId);
+      updateGlobalStudents(filtered);
+      return filtered;
+    });
   };
 
   const addTestResult = (result) => {
@@ -137,7 +240,6 @@ export const AppProvider = ({ children }) => {
       let newStreak = 1;
       if (lastTestTimestamp) {
         const hoursPassed = (now - parseInt(lastTestTimestamp, 10)) / (1000 * 60 * 60);
-        // If solved within 48 hours, increment streak, otherwise reset to 1
         if (hoursPassed < 48) {
           newStreak = streak + 1;
         }
@@ -147,7 +249,6 @@ export const AppProvider = ({ children }) => {
       localStorage.setItem('aptipro_last_date', today);
       localStorage.setItem('aptipro_last_timestamp', now.toString());
     } else {
-      // Already solved a category today, update timestamp
       localStorage.setItem('aptipro_last_timestamp', now.toString());
     }
   };
@@ -174,8 +275,6 @@ export const AppProvider = ({ children }) => {
     localStorage.removeItem('aptipro_last_timestamp');
   };
 
-  const stats = calculateStats(testHistory);
-
   // Check unlocked badges
   const unlockedBadges = BADGES.filter(badge => badge.checkUnlocked(stats, testHistory, streak));
 
@@ -190,6 +289,8 @@ export const AppProvider = ({ children }) => {
         darkMode,
         stats,
         unlockedBadges,
+        registeredStudents,
+        removeStudentFromRoster,
         loginUser,
         logoutUser,
         addTestResult,

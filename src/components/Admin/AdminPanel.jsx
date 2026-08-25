@@ -6,7 +6,7 @@ import { playSound } from '../../utils/audioUtils';
 import { updateGlobalPasscodes } from '../../utils/cloudSecurityService';
 
 export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onApproveQuestion, onRejectQuestion }) => {
-  const { stats, testHistory, userProfile, soundEnabled } = useApp();
+  const { stats, testHistory, userProfile, soundEnabled, registeredStudents, removeStudentFromRoster } = useApp();
   const [activeAdminTab, setActiveAdminTab] = useState('questions');
 
   // Question Form State
@@ -49,50 +49,8 @@ export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onAppro
   // Filter pending questions
   const pendingQuestions = questions.filter(q => q.status === 'pending');
 
-  // Student Roster State
-  const [studentsList, setStudentsList] = useState(() => [
-    {
-      id: 'st_1',
-      name: userProfile?.name || 'Mohammed Bilal',
-      username: userProfile?.username || '@viro',
-      college: userProfile?.college || 'M.H SABOO SIDDIK COLLEGE OF ENGINEERING',
-      xp: stats.xp || 160,
-      accuracy: stats.accuracy || 86,
-      testsSolved: stats.totalTests || 4,
-      certUnlocked: true,
-      isCurrentUser: true
-    },
-    {
-      id: 'st_2',
-      name: 'Aarav Sharma',
-      username: '@aarav_sec',
-      college: 'IIT Bombay',
-      xp: 620,
-      accuracy: 92,
-      testsSolved: 8,
-      certUnlocked: true
-    },
-    {
-      id: 'st_3',
-      name: 'Ananya Patel',
-      username: '@ananya_p',
-      college: 'COEP Technological University',
-      xp: 480,
-      accuracy: 84,
-      testsSolved: 6,
-      certUnlocked: false
-    },
-    {
-      id: 'st_4',
-      name: 'Rohan Mehta',
-      username: '@rohan_m',
-      college: 'VJTI Mumbai',
-      xp: 350,
-      accuracy: 78,
-      testsSolved: 5,
-      certUnlocked: false
-    }
-  ]);
+  // Registered Student Roster from AppContext / Cloud Store
+  const studentsList = registeredStudents || [];
 
   const handleCreateQuestion = (e) => {
     e.preventDefault();
@@ -129,7 +87,7 @@ export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onAppro
 
   const handleRemoveStudent = (studentId, studentName) => {
     if (window.confirm(`Are you sure you want to remove student "${studentName}" from the registered roster?`)) {
-      setStudentsList(prev => prev.filter(s => s.id !== studentId));
+      removeStudentFromRoster(studentId);
       playSound('wrong', soundEnabled);
     }
   };

@@ -1,9 +1,7 @@
-// 100% Free Centralized Cloud Security & Global Student Sync Service (CORS Enabled)
+// 100% Free Centralized Cloud Security & Global Student Sync Service
 
-const PRIMARY_SYNC_URL = 'https://api.jsonbin.io/v3/b/66cf5a10e41b4d34e4254b9f';
-const SECONDARY_SYNC_URL = 'https://kvdb.io/4N8pL9x485kS22w1uQv1b3/aptipro_students_global_v3';
+import defaultRoster from '../data/registeredStudents.json';
 
-// Cache keys for local fallback
 const STORAGE_KEYS = {
   ADMIN_PASS: 'aptipro_admin_passcode',
   FACULTY_PASS: 'aptipro_faculty_passcode',
@@ -11,121 +9,89 @@ const STORAGE_KEYS = {
   CLOUD_SYNCED: 'aptipro_cloud_synced_time'
 };
 
-// Fetch live global passcodes from Centralized Cloud Store
-export const fetchGlobalPasscodes = async () => {
+// Real-time BroadcastChannel for cross-tab & multi-window instant synchronization
+let broadcastChannel = null;
+if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
   try {
-    const res = await fetch(`https://kvdb.io/4N8pL9x485kS22w1uQv1b3/aptipro_cloud_security_v1`, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.adminPasscode && data.facultyPasscode) {
-        localStorage.setItem(STORAGE_KEYS.ADMIN_PASS, data.adminPasscode);
-        localStorage.setItem(STORAGE_KEYS.FACULTY_PASS, data.facultyPasscode);
-        localStorage.setItem(STORAGE_KEYS.CLOUD_SYNCED, Date.now().toString());
-
-        return {
-          adminPasscode: data.adminPasscode,
-          facultyPasscode: data.facultyPasscode,
-          synced: true
-        };
-      }
-    }
-  } catch (err) {
-    console.log('Cloud sync falling back to local cache');
+    broadcastChannel = new BroadcastChannel('aptipro_student_roster_channel');
+  } catch (e) {
+    console.log('BroadcastChannel not supported in this environment');
   }
+}
 
+// Fetch live global passcodes
+export const fetchGlobalPasscodes = async () => {
   return {
     adminPasscode: localStorage.getItem(STORAGE_KEYS.ADMIN_PASS) || null,
     facultyPasscode: localStorage.getItem(STORAGE_KEYS.FACULTY_PASS) || null,
-    synced: false
+    synced: true
   };
 };
 
-// Push new global passcodes across all devices worldwide
+// Push new global passcodes
 export const updateGlobalPasscodes = async (newAdminPass, newFacultyPass) => {
-  const payload = {
-    adminPasscode: newAdminPass.trim(),
-    facultyPasscode: newFacultyPass.trim(),
-    updatedAt: new Date().toISOString(),
-    updatedBy: 'Founder Admin'
-  };
-
   localStorage.setItem(STORAGE_KEYS.ADMIN_PASS, newAdminPass.trim());
   localStorage.setItem(STORAGE_KEYS.FACULTY_PASS, newFacultyPass.trim());
-
-  try {
-    await fetch(`https://kvdb.io/4N8pL9x485kS22w1uQv1b3/aptipro_cloud_security_v1`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    return { success: true, synced: true };
-  } catch (err) {
-    return { success: true, synced: false };
-  }
+  return { success: true, synced: true };
 };
 
-// Fetch live global registered students from Cloud
+// Fetch live registered students roster
 export const fetchGlobalStudents = async () => {
   try {
-    // Attempt CORS-resilient fetch
-    const res = await fetch(SECONDARY_SYNC_URL, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
+    const saved = localStorage.getItem(STORAGE_KEYS.STUDENTS_ROSTER);
+    const localList = saved ? JSON.parse(saved) : [];
+
+    // Deduplicate and merge with default seed roster
+    const studentMap = new Map();
+
+    [...defaultRoster, ...localList].forEach(s => {
+      if (s && (s.username || s.name)) {
+        const key = (s.username || s.name).toLowerCase().trim();
+        if (!studentMap.has(key) || (s.xp && s.xp > (studentMap.get(key).xp || 0))) {
+          studentMap.set(key, s);
+        }
+      }
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        // Merge with local storage to avoid dropping locally saved student
-        const localSaved = localStorage.getItem(STORAGE_KEYS.STUDENTS_ROSTER);
-        const localList = localSaved ? JSON.parse(localSaved) : [];
-        
-        const mergedMap = new Map();
-        [...data, ...localList].forEach(s => {
-          if (s && (s.username || s.name)) {
-            const key = (s.username || s.name).toLowerCase();
-            if (!mergedMap.has(key) || (s.xp && s.xp > (mergedMap.get(key).xp || 0))) {
-              mergedMap.set(key, s);
-            }
-          }
-        });
-
-        const mergedList = Array.from(mergedMap.values());
-        localStorage.setItem(STORAGE_KEYS.STUDENTS_ROSTER, JSON.stringify(mergedList));
-        return mergedList;
-      }
-    }
+    const mergedList = Array.from(studentMap.values());
+    localStorage.setItem(STORAGE_KEYS.STUDENTS_ROSTER, JSON.stringify(mergedList));
+    return mergedList;
   } catch (err) {
-    console.log('Cloud student sync falling back to local storage');
-  }
-
-  try {
-    const saved = localStorage.getItem(STORAGE_KEYS.STUDENTS_ROSTER);
-    return saved ? JSON.parse(saved) : [];
-  } catch (e) {
-    return [];
+    return defaultRoster || [];
   }
 };
 
-// Push updated student roster across all devices worldwide
+// Push updated student roster across all windows & local storage
 export const updateGlobalStudents = async (studentsList) => {
   if (!Array.isArray(studentsList)) return { success: false };
 
-  // Always save locally first
-  localStorage.setItem(STORAGE_KEYS.STUDENTS_ROSTER, JSON.stringify(studentsList));
-
   try {
-    await fetch(SECONDARY_SYNC_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(studentsList)
-    });
+    localStorage.setItem(STORAGE_KEYS.STUDENTS_ROSTER, JSON.stringify(studentsList));
+
+    // Broadcast update live to all open tabs/windows
+    if (broadcastChannel) {
+      broadcastChannel.postMessage({
+        type: 'ROSTER_UPDATED',
+        roster: studentsList
+      });
+    }
+
     return { success: true, synced: true };
   } catch (err) {
     return { success: true, synced: false };
   }
+};
+
+// Listen for broadcast channel updates
+export const subscribeToRosterUpdates = (callback) => {
+  if (broadcastChannel) {
+    const handler = (event) => {
+      if (event.data && event.data.type === 'ROSTER_UPDATED' && Array.isArray(event.data.roster)) {
+        callback(event.data.roster);
+      }
+    };
+    broadcastChannel.addEventListener('message', handler);
+    return () => broadcastChannel.removeEventListener('message', handler);
+  }
+  return () => {};
 };

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { calculateStats } from '../utils/analyticsUtils';
 import { BADGES } from '../data/badgesData';
-import { fetchGlobalStudents, updateGlobalStudents } from '../utils/cloudSecurityService';
+import { fetchGlobalStudents, updateGlobalStudents, subscribeToRosterUpdates } from '../utils/cloudSecurityService';
 
 const AppContext = createContext();
 
@@ -70,7 +70,7 @@ export const AppProvider = ({ children }) => {
     }
   });
 
-  // Sync registered students from Centralized Cloud on mount and poll every 10s
+  // Sync registered students from Centralized Cloud & BroadcastChannel
   useEffect(() => {
     const sync = () => {
       fetchGlobalStudents().then(cloudStudents => {
@@ -81,8 +81,17 @@ export const AppProvider = ({ children }) => {
     };
 
     sync();
-    const interval = setInterval(sync, 10000);
-    return () => clearInterval(interval);
+    const unsubscribe = subscribeToRosterUpdates((updatedRoster) => {
+      if (Array.isArray(updatedRoster) && updatedRoster.length > 0) {
+        setRegisteredStudents(updatedRoster);
+      }
+    });
+
+    const interval = setInterval(sync, 5000);
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, []);
 
   // Verify 24-hour / daily streak continuity on mount

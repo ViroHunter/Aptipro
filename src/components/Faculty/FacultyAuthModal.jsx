@@ -21,9 +21,13 @@ export const FacultyAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
     }
 
     const savedPass = localStorage.getItem('aptipro_faculty_passcode');
-    const validFacultyPasscode = savedPass ? savedPass.trim() : 'faculty123';
 
-    if (passcode.trim() === validFacultyPasscode) {
+    if (!savedPass || savedPass.trim() === '') {
+      setError('Faculty Passcode not configured. Contact the Admin to set it up.');
+      return;
+    }
+
+    if (passcode.trim() === savedPass.trim()) {
       playSound('correct', soundEnabled);
       setError('');
       onAuthenticated({

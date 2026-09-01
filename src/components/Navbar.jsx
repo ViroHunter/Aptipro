@@ -24,8 +24,6 @@ export const Navbar = ({ activeTab, setActiveTab, onFacultyLogin }) => {
     { id: 'formulas', label: 'Formula Deck', icon: BookOpen },
     { id: 'custom', label: 'Custom Test', icon: Sliders },
     { id: 'achievements', label: 'Badges & XP', icon: Award },
-    { id: 'faculty', label: 'Faculty Portal', icon: GraduationCap, isFaculty: true },
-    { id: 'admin', label: 'Admin Portal', icon: ShieldCheck, isAdmin: true }
   ];
 
   // Helper for initials

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { ShieldCheck, Database, Users, Award, Plus, Trash2, Search, CheckCircle2, Lock, Sparkles, FileText, Check, UserX, Clock, XCircle, GraduationCap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, Database, Users, Award, Plus, Trash2, Search, CheckCircle2, Lock, Sparkles, FileText, Check, UserX, Clock, XCircle, GraduationCap, RefreshCw } from 'lucide-react';
 import { CATEGORIES } from '../../data/questionsData';
 import { useApp } from '../../context/AppContext';
 import { playSound } from '../../utils/audioUtils';
-import { updateGlobalPasscodes } from '../../utils/cloudSecurityService';
+import { updateGlobalPasscodes, fetchGlobalStudents } from '../../utils/cloudSecurityService';
 
 export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onApproveQuestion, onRejectQuestion }) => {
   const { stats, testHistory, userProfile, soundEnabled, registeredStudents, removeStudentFromRoster } = useApp();
@@ -32,25 +32,42 @@ export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onAppro
   const [newFacultyPass, setNewFacultyPass] = useState(() => localStorage.getItem('aptipro_faculty_passcode') || '');
   const [securityMsg, setSecurityMsg] = useState('');
 
+  // Live registered students — fetched fresh from cloud + local storage
+  const [liveStudents, setLiveStudents] = useState(registeredStudents || []);
+  const [studentLoading, setStudentLoading] = useState(false);
+
+  const refreshStudents = async () => {
+    setStudentLoading(true);
+    try {
+      const fresh = await fetchGlobalStudents();
+      if (Array.isArray(fresh)) setLiveStudents(fresh);
+    } catch (e) {}
+    setStudentLoading(false);
+  };
+
+  useEffect(() => {
+    refreshStudents();
+    const interval = setInterval(refreshStudents, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleUpdatePasscodes = async (e) => {
     e.preventDefault();
     if (!newAdminPass.trim() || !newFacultyPass.trim()) {
       alert('Passcodes cannot be empty.');
       return;
     }
-
-    // Push passcodes globally to Centralized Cloud Security Store
     await updateGlobalPasscodes(newAdminPass.trim(), newFacultyPass.trim());
     playSound('correct', soundEnabled);
-    setSecurityMsg('Passcodes updated globally across all devices! Active immediately worldwide.');
+    setSecurityMsg('Passcodes updated! Active immediately on this device.');
     setTimeout(() => setSecurityMsg(''), 4000);
   };
 
   // Filter pending questions
   const pendingQuestions = questions.filter(q => q.status === 'pending');
 
-  // Registered Student Roster from AppContext / Cloud Store
-  const studentsList = registeredStudents || [];
+  // Use live fetched students for admin roster
+  const studentsList = liveStudents;
 
   const handleCreateQuestion = (e) => {
     e.preventDefault();
@@ -550,12 +567,22 @@ export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onAppro
       {activeAdminTab === 'students' && (
         <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md space-y-6 animate-fadeIn">
           <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
-            <div>
-              <h3 className="text-lg font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                Registered Student Roster ({studentsList.length} Students)
-              </h3>
-              <p className="text-xs text-slate-500">Manage student profiles, track XP levels, and remove inactive records</p>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  Registered Student Roster ({studentsList.length} Students)
+                </h3>
+                <p className="text-xs text-slate-500">All students registered from any device — live synced</p>
+              </div>
+              <button
+                onClick={refreshStudents}
+                disabled={studentLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-900 text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:bg-indigo-100 transition disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${studentLoading ? 'animate-spin' : ''}`} />
+                {studentLoading ? 'Syncing...' : 'Refresh'}
+              </button>
             </div>
           </div>
 

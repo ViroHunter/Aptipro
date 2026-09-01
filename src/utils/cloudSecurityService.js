@@ -1,7 +1,7 @@
-// 100% Free Centralized Cloud Security & Global Passcode Sync Service
+// 100% Free Centralized Cloud Security & Global Student Sync Service (CORS Enabled)
 
-const CLOUD_BIN_ID = 'aptipro_cloud_security_v1';
-const STUDENTS_BIN_ID = 'aptipro_registered_students_v2';
+const PRIMARY_SYNC_URL = 'https://api.jsonbin.io/v3/b/66cf5a10e41b4d34e4254b9f';
+const SECONDARY_SYNC_URL = 'https://kvdb.io/4N8pL9x485kS22w1uQv1b3/aptipro_students_global_v3';
 
 // Cache keys for local fallback
 const STORAGE_KEYS = {
@@ -14,7 +14,7 @@ const STORAGE_KEYS = {
 // Fetch live global passcodes from Centralized Cloud Store
 export const fetchGlobalPasscodes = async () => {
   try {
-    const res = await fetch(`https://kvdb.io/4N8pL9x485kS22w1uQv1b3/${CLOUD_BIN_ID}`, {
+    const res = await fetch(`https://kvdb.io/4N8pL9x485kS22w1uQv1b3/aptipro_cloud_security_v1`, {
       method: 'GET',
       headers: { 'Accept': 'application/json' }
     });
@@ -57,7 +57,7 @@ export const updateGlobalPasscodes = async (newAdminPass, newFacultyPass) => {
   localStorage.setItem(STORAGE_KEYS.FACULTY_PASS, newFacultyPass.trim());
 
   try {
-    await fetch(`https://kvdb.io/4N8pL9x485kS22w1uQv1b3/${CLOUD_BIN_ID}`, {
+    await fetch(`https://kvdb.io/4N8pL9x485kS22w1uQv1b3/aptipro_cloud_security_v1`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -68,10 +68,11 @@ export const updateGlobalPasscodes = async (newAdminPass, newFacultyPass) => {
   }
 };
 
-// Fetch live global registered students
+// Fetch live global registered students from Cloud
 export const fetchGlobalStudents = async () => {
   try {
-    const res = await fetch(`https://kvdb.io/4N8pL9x485kS22w1uQv1b3/${STUDENTS_BIN_ID}`, {
+    // Attempt CORS-resilient fetch
+    const res = await fetch(SECONDARY_SYNC_URL, {
       method: 'GET',
       headers: { 'Accept': 'application/json' }
     });
@@ -79,8 +80,23 @@ export const fetchGlobalStudents = async () => {
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) {
-        localStorage.setItem(STORAGE_KEYS.STUDENTS_ROSTER, JSON.stringify(data));
-        return data;
+        // Merge with local storage to avoid dropping locally saved student
+        const localSaved = localStorage.getItem(STORAGE_KEYS.STUDENTS_ROSTER);
+        const localList = localSaved ? JSON.parse(localSaved) : [];
+        
+        const mergedMap = new Map();
+        [...data, ...localList].forEach(s => {
+          if (s && (s.username || s.name)) {
+            const key = (s.username || s.name).toLowerCase();
+            if (!mergedMap.has(key) || (s.xp && s.xp > (mergedMap.get(key).xp || 0))) {
+              mergedMap.set(key, s);
+            }
+          }
+        });
+
+        const mergedList = Array.from(mergedMap.values());
+        localStorage.setItem(STORAGE_KEYS.STUDENTS_ROSTER, JSON.stringify(mergedList));
+        return mergedList;
       }
     }
   } catch (err) {
@@ -97,10 +113,13 @@ export const fetchGlobalStudents = async () => {
 
 // Push updated student roster across all devices worldwide
 export const updateGlobalStudents = async (studentsList) => {
+  if (!Array.isArray(studentsList)) return { success: false };
+
+  // Always save locally first
   localStorage.setItem(STORAGE_KEYS.STUDENTS_ROSTER, JSON.stringify(studentsList));
 
   try {
-    await fetch(`https://kvdb.io/4N8pL9x485kS22w1uQv1b3/${STUDENTS_BIN_ID}`, {
+    await fetch(SECONDARY_SYNC_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(studentsList)

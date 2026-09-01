@@ -70,13 +70,19 @@ export const AppProvider = ({ children }) => {
     }
   });
 
-  // Sync registered students from Centralized Cloud on mount
+  // Sync registered students from Centralized Cloud on mount and poll every 10s
   useEffect(() => {
-    fetchGlobalStudents().then(cloudStudents => {
-      if (Array.isArray(cloudStudents)) {
-        setRegisteredStudents(cloudStudents);
-      }
-    });
+    const sync = () => {
+      fetchGlobalStudents().then(cloudStudents => {
+        if (Array.isArray(cloudStudents) && cloudStudents.length > 0) {
+          setRegisteredStudents(cloudStudents);
+        }
+      });
+    };
+
+    sync();
+    const interval = setInterval(sync, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   // Verify 24-hour / daily streak continuity on mount

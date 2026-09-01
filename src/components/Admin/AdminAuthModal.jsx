@@ -127,15 +127,13 @@ export const AdminAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
               <Lock className="w-4 h-4" /> Unlock Admin Portal
             </button>
 
-            {!isPasscodeConfigured() && (
-              <button
-                type="button"
-                onClick={() => { setShowSetup(true); setError(''); setSetupMsg(''); }}
-                className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white font-bold text-xs transition flex items-center justify-center gap-2"
-              >
-                <Settings className="w-3.5 h-3.5" /> First Time Setup (Founder Only)
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => { setShowSetup(true); setError(''); setSetupMsg(''); }}
+              className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white font-bold text-xs transition flex items-center justify-center gap-2"
+            >
+              <Settings className="w-3.5 h-3.5" /> Forgot / Reset Passcode (Founder Only)
+            </button>
           </form>
         )}
 
@@ -143,7 +141,7 @@ export const AdminAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
         {showSetup && (
           <form onSubmit={handleSetup} className="space-y-4">
             <div className="p-3 rounded-xl bg-amber-950/50 border border-amber-900 text-amber-300 text-xs font-semibold">
-              🔐 Founder Setup — Enter your secret Founder Key to configure the Admin Passcode for the first time.
+              🔐 Founder Reset — Enter your secret Founder Key to set a new Admin Passcode.
             </div>
 
             <div>

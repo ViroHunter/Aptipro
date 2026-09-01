@@ -140,9 +140,20 @@ export const Leaderboard = () => {
         </div>
       </div>
 
-      {/* Top Podium Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {displayList.slice(0, 3).map((student) => {
+      {/* Top Podium & Leaderboard Content */}
+      {displayList.length === 0 ? (
+        <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-3 shadow-sm">
+          <Trophy className="w-12 h-12 text-amber-500/60 mx-auto animate-bounce" />
+          <h4 className="font-extrabold text-slate-900 dark:text-slate-100 text-lg">No Registered Student Rankings Yet</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+            Sign in with your profile and start solving practice tests to earn real XP, build accuracy, and claim your place on the global standings!
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Top Podium Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {displayList.slice(0, 3).map((student) => {
           let rankBadge = 'bg-amber-400 text-slate-950 border-amber-300';
           let borderStyle = 'border-amber-400/60';
           let crownColor = 'text-amber-400';
@@ -271,6 +282,8 @@ export const Leaderboard = () => {
           </table>
         </div>
       </div>
+        </>
+      )}
 
     </div>
   );

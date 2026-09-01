@@ -5,53 +5,6 @@ import { fetchGlobalStudents, updateGlobalStudents } from '../utils/cloudSecurit
 
 const AppContext = createContext();
 
-const INITIAL_SEED_STUDENTS = [
-  {
-    id: 'st_1',
-    name: 'Mohammed Bilal',
-    username: '@viro',
-    college: 'M.H SABOO SIDDIK COLLEGE OF ENGINEERING',
-    xp: 160,
-    accuracy: 86,
-    testsSolved: 4,
-    certUnlocked: true,
-    joinedDate: 'Aug 21, 2026'
-  },
-  {
-    id: 'st_2',
-    name: 'Aarav Sharma',
-    username: '@aarav_sec',
-    college: 'IIT Bombay',
-    xp: 620,
-    accuracy: 92,
-    testsSolved: 8,
-    certUnlocked: true,
-    joinedDate: 'Aug 22, 2026'
-  },
-  {
-    id: 'st_3',
-    name: 'Ananya Patel',
-    username: '@ananya_p',
-    college: 'COEP Technological University',
-    xp: 480,
-    accuracy: 84,
-    testsSolved: 6,
-    certUnlocked: false,
-    joinedDate: 'Aug 23, 2026'
-  },
-  {
-    id: 'st_4',
-    name: 'Rohan Mehta',
-    username: '@rohan_m',
-    college: 'VJTI Mumbai',
-    xp: 350,
-    accuracy: 78,
-    testsSolved: 5,
-    certUnlocked: false,
-    joinedDate: 'Aug 24, 2026'
-  }
-];
-
 export const AppProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(() => {
     try {
@@ -111,17 +64,16 @@ export const AppProvider = ({ children }) => {
   const [registeredStudents, setRegisteredStudents] = useState(() => {
     try {
       const saved = localStorage.getItem('aptipro_registered_students');
-      const list = saved ? JSON.parse(saved) : [];
-      return list.length > 0 ? list : INITIAL_SEED_STUDENTS;
+      return saved ? JSON.parse(saved) : [];
     } catch (e) {
-      return INITIAL_SEED_STUDENTS;
+      return [];
     }
   });
 
   // Sync registered students from Centralized Cloud on mount
   useEffect(() => {
     fetchGlobalStudents().then(cloudStudents => {
-      if (Array.isArray(cloudStudents) && cloudStudents.length > 0) {
+      if (Array.isArray(cloudStudents)) {
         setRegisteredStudents(cloudStudents);
       }
     });
@@ -189,16 +141,16 @@ export const AppProvider = ({ children }) => {
 
     setUserProfile(profile);
 
-    // Register student in global roster
+    // Register student with exact real stats (0 by default if new)
     const newStudent = {
       id: `st_${Date.now()}`,
       name: profile.name,
       username: profile.username,
       college: profile.college,
       joinedDate: profile.joinedDate,
-      xp: stats.xp || 160,
-      accuracy: stats.accuracy || 86,
-      testsSolved: stats.totalTests || 4,
+      xp: stats.xp || 0,
+      accuracy: stats.accuracy || 0,
+      testsSolved: stats.totalTests || 0,
       certUnlocked: stats.accuracy >= 75 && stats.totalTests >= 3
     };
 
@@ -230,6 +182,28 @@ export const AppProvider = ({ children }) => {
   const addTestResult = (result) => {
     const updatedHistory = [result, ...testHistory];
     setTestHistory(updatedHistory);
+
+    const newStats = calculateStats(updatedHistory);
+
+    // Update real stats for logged in student in roster
+    if (userProfile) {
+      setRegisteredStudents(prev => {
+        const updated = prev.map(s => {
+          if (s.username === userProfile.username || s.name === userProfile.name) {
+            return {
+              ...s,
+              xp: newStats.xp,
+              accuracy: newStats.accuracy,
+              testsSolved: newStats.totalTests,
+              certUnlocked: newStats.accuracy >= 75 && newStats.totalTests >= 3
+            };
+          }
+          return s;
+        });
+        updateGlobalStudents(updated);
+        return updated;
+      });
+    }
 
     const lastTestDate = localStorage.getItem('aptipro_last_date');
     const lastTestTimestamp = localStorage.getItem('aptipro_last_timestamp');

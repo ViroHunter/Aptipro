@@ -3,31 +3,50 @@ import { Trophy, Crown, Award, Medal, School, Target, Zap, Search, UserCheck } f
 import { useApp } from '../../context/AppContext';
 
 export const Leaderboard = () => {
-  const { stats, userProfile } = useApp();
+  const { stats, userProfile, registeredStudents } = useApp();
   const [filter, setFilter] = useState('global'); // 'global', 'college'
 
-  // Dynamic registered student entry (Only real active student data)
-  const currentUserEntry = {
-    id: 'user_active',
-    isCurrentUser: true,
-    name: userProfile?.name || 'Mohammed Bilal',
-    username: userProfile?.username || '@viro',
-    college: userProfile?.college || 'M.H SABOO SIDDIK COLLEGE OF ENGINEERING',
-    xp: stats.xp || 0,
-    accuracy: stats.accuracy || 0,
-    testsCompleted: stats.totalTests || 0,
-    badgeTitle: stats.levelTitle
-  };
+  // Source registered students from AppContext / Cloud Security Store
+  const sourceStudents = registeredStudents && registeredStudents.length > 0 ? registeredStudents : [];
 
-  // Build ranking strictly from registered active student entries
-  let realStudentsList = [currentUserEntry];
+  // Build ranking entries for all registered students
+  let allEntries = sourceStudents.map((s) => {
+    const isCurrent = userProfile && (
+      (userProfile.username && s.username === userProfile.username) || 
+      (userProfile.name && s.name.toLowerCase() === userProfile.name.toLowerCase())
+    );
+    return {
+      id: s.id || s.username,
+      name: s.name,
+      username: s.username,
+      college: s.college,
+      xp: isCurrent ? (stats.xp || s.xp || 0) : (s.xp || 0),
+      accuracy: isCurrent ? (stats.accuracy || s.accuracy || 0) : (s.accuracy || 0),
+      testsCompleted: isCurrent ? (stats.totalTests || s.testsSolved || s.testsCompleted || 0) : (s.testsSolved || s.testsCompleted || 0),
+      isCurrentUser: isCurrent
+    };
+  });
+
+  // Ensure current user is present if logged in
+  if (userProfile && !allEntries.some(s => s.isCurrentUser)) {
+    allEntries.unshift({
+      id: 'user_active',
+      isCurrentUser: true,
+      name: userProfile.name,
+      username: userProfile.username,
+      college: userProfile.college,
+      xp: stats.xp || 0,
+      accuracy: stats.accuracy || 0,
+      testsCompleted: stats.totalTests || 0
+    });
+  }
 
   // Deterministic Multi-Tier Ranking Sort Engine:
   // 1. XP Points (Primary)
   // 2. Accuracy % (Secondary)
   // 3. Tests Completed (Tertiary)
   // 4. Alphabetical Name (Tie-breaker)
-  let allEntries = [...realStudentsList].sort((a, b) => {
+  allEntries.sort((a, b) => {
     if (b.xp !== a.xp) return b.xp - a.xp;
     if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
     if (b.testsCompleted !== a.testsCompleted) return b.testsCompleted - a.testsCompleted;

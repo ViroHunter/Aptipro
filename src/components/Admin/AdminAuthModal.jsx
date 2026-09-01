@@ -22,7 +22,7 @@ export const AdminAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
       onClose();
     } else {
       playSound('wrong', soundEnabled);
-      setError('Incorrect Admin Passcode! (Default: admin123)');
+      setError('Incorrect Admin Passcode!');
     }
   };
 
@@ -63,13 +63,12 @@ export const AdminAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
                 type="password"
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
-                placeholder="Enter passcode (admin123)"
+                placeholder="Enter Admin passcode..."
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-xs font-bold text-emerald-400 focus:outline-none focus:border-indigo-500"
                 autoFocus
                 required
               />
             </div>
-            <span className="text-[11px] text-slate-500 mt-1 block">Default passcode: <code className="text-indigo-400 font-mono">admin123</code></span>
           </div>
 
           <button

@@ -33,7 +33,7 @@ export const FacultyAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
       onClose();
     } else {
       playSound('wrong', soundEnabled);
-      setError('Incorrect Faculty Passcode! (Default: faculty123)');
+      setError('Incorrect Faculty Passcode!');
     }
   };
 
@@ -101,12 +101,11 @@ export const FacultyAuthModal = ({ isOpen, onClose, onAuthenticated }) => {
                 type="password"
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
-                placeholder="Enter passcode (faculty123)"
+                placeholder="Enter Faculty passcode..."
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-xs font-bold text-violet-400 focus:outline-none focus:border-violet-500"
                 required
               />
             </div>
-            <span className="text-[11px] text-slate-500 mt-1 block">Default passcode: <code className="text-violet-400 font-mono">faculty123</code></span>
           </div>
 
           <button

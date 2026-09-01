@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Zap, BookOpen, Sliders, Award, Flame, Crown, User, School, LogIn, LogOut, Edit3, Trophy, ShieldCheck, Lock, GraduationCap, FileCheck } from 'lucide-react';
+import { Zap, BookOpen, Sliders, Award, Flame, Crown, User, School, LogIn, LogOut, Edit3, Trophy, ShieldCheck, Lock, GraduationCap, FileCheck, RotateCcw } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { useApp } from '../context/AppContext';
 import { AuthModal } from './Auth/AuthModal';
@@ -7,7 +7,7 @@ import { AdminAuthModal } from './Admin/AdminAuthModal';
 import { FacultyAuthModal } from './Faculty/FacultyAuthModal';
 
 export const Navbar = ({ activeTab, setActiveTab, onFacultyLogin }) => {
-  const { stats, streak, userProfile, logoutUser } = useApp();
+  const { stats, streak, userProfile, logoutUser, resetProgress } = useApp();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isAdminAuthOpen, setIsAdminAuthOpen] = useState(false);
   const [isFacultyAuthOpen, setIsFacultyAuthOpen] = useState(false);
@@ -158,6 +158,18 @@ export const Navbar = ({ activeTab, setActiveTab, onFacultyLogin }) => {
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                     >
                       <Edit3 className="w-4 h-4 text-indigo-600" /> Edit Profile Details
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Reset all your test history and start fresh at 0 XP?')) {
+                          resetProgress();
+                          setIsProfileMenuOpen(false);
+                        }
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition"
+                    >
+                      <RotateCcw className="w-4 h-4" /> Reset Stats to 0 XP
                     </button>
 
                     <button

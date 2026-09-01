@@ -1,7 +1,7 @@
 // 100% Free Centralized Cloud Security & Global Passcode Sync Service
 
 const CLOUD_BIN_ID = 'aptipro_cloud_security_v1';
-const STUDENTS_BIN_ID = 'aptipro_registered_students_v1';
+const STUDENTS_BIN_ID = 'aptipro_registered_students_v2';
 
 // Cache keys for local fallback
 const STORAGE_KEYS = {

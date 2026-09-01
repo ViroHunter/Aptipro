@@ -20,9 +20,9 @@ export const Leaderboard = () => {
       name: s.name,
       username: s.username,
       college: s.college,
-      xp: isCurrent ? (stats.xp || s.xp || 0) : (s.xp || 0),
-      accuracy: isCurrent ? (stats.accuracy || s.accuracy || 0) : (s.accuracy || 0),
-      testsCompleted: isCurrent ? (stats.totalTests || s.testsSolved || s.testsCompleted || 0) : (s.testsSolved || s.testsCompleted || 0),
+      xp: isCurrent ? stats.xp : (s.xp || 0),
+      accuracy: isCurrent ? stats.accuracy : (s.accuracy || 0),
+      testsCompleted: isCurrent ? stats.totalTests : (s.testsSolved || s.testsCompleted || 0),
       isCurrentUser: isCurrent
     };
   });

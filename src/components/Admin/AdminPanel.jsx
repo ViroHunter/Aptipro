@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Database, Users, Award, Plus, Trash2, Search, CheckCircle2, Lock, Sparkles, FileText, Check, UserX, Clock, XCircle, GraduationCap, RefreshCw } from 'lucide-react';
+import { ShieldCheck, Database, Users, Award, Plus, Trash2, Search, CheckCircle2, Lock, Sparkles, FileText, Check, UserX, Clock, XCircle, GraduationCap, RefreshCw, Bell } from 'lucide-react';
 import { CATEGORIES } from '../../data/questionsData';
 import { useApp } from '../../context/AppContext';
 import { playSound } from '../../utils/audioUtils';
-import { updateGlobalPasscodes, fetchGlobalStudents } from '../../utils/cloudSecurityService';
+import { updateGlobalPasscodes, fetchGlobalStudents, fetchRegisteredFaculty, subscribeToFacultyUpdates } from '../../utils/cloudSecurityService';
 
 export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onApproveQuestion, onRejectQuestion }) => {
   const { stats, testHistory, userProfile, soundEnabled, registeredStudents, removeStudentFromRoster } = useApp();
@@ -34,22 +34,60 @@ export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onAppro
 
   // Live registered students — fetched fresh from cloud + local storage
   const [liveStudents, setLiveStudents] = useState(registeredStudents || []);
+  const [liveFaculty, setLiveFaculty] = useState(() => fetchRegisteredFaculty());
   const [studentLoading, setStudentLoading] = useState(false);
+  const [newEntryAlert, setNewEntryAlert] = useState(null); // {name, type}
 
   const refreshStudents = async () => {
     setStudentLoading(true);
     try {
       const fresh = await fetchGlobalStudents();
-      if (Array.isArray(fresh)) setLiveStudents(fresh);
+      if (Array.isArray(fresh)) {
+        setLiveStudents(prev => {
+          if (fresh.length > prev.length) {
+            const newOne = fresh.find(s => !prev.some(p => (p.username || p.name) === (s.username || s.name)));
+            if (newOne) setNewEntryAlert({ name: newOne.name, type: 'student' });
+          }
+          return fresh;
+        });
+      }
     } catch (e) {}
     setStudentLoading(false);
   };
 
+  const refreshFaculty = () => {
+    const fresh = fetchRegisteredFaculty();
+    setLiveFaculty(prev => {
+      if (fresh.length > prev.length) {
+        const newOne = fresh.find(f => !prev.some(p => p.name === f.name));
+        if (newOne) setNewEntryAlert({ name: newOne.name, type: 'faculty' });
+      }
+      return fresh;
+    });
+  };
+
   useEffect(() => {
     refreshStudents();
-    const interval = setInterval(refreshStudents, 8000);
-    return () => clearInterval(interval);
+    refreshFaculty();
+    const interval = setInterval(() => { refreshStudents(); refreshFaculty(); }, 5000);
+
+    const unsubFaculty = subscribeToFacultyUpdates((updated) => {
+      setLiveFaculty(updated);
+      if (updated.length > liveFaculty.length) {
+        setNewEntryAlert({ name: updated[updated.length - 1]?.name, type: 'faculty' });
+      }
+    });
+
+    return () => { clearInterval(interval); unsubFaculty(); };
   }, []);
+
+  // Auto-dismiss new entry alert after 5 seconds
+  useEffect(() => {
+    if (newEntryAlert) {
+      const t = setTimeout(() => setNewEntryAlert(null), 5000);
+      return () => clearTimeout(t);
+    }
+  }, [newEntryAlert]);
 
   const handleUpdatePasscodes = async (e) => {
     e.preventDefault();
@@ -203,7 +241,7 @@ export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onAppro
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <Users className="w-3.5 h-3.5" /> Students ({studentsList.length})
+            <Users className="w-3.5 h-3.5" /> Students & Faculty ({studentsList.length + liveFaculty.length})
           </button>
           <button
             onClick={() => setActiveAdminTab('verifier')}
@@ -238,9 +276,10 @@ export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onAppro
         </div>
 
         <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <span className="text-xs font-bold text-slate-500 uppercase">Registered Students</span>
-          <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-            {studentsList.length} Active
+          <span className="text-xs font-bold text-slate-500 uppercase">Registered Users</span>
+          <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1 flex items-baseline gap-2">
+            <span>{studentsList.length} <span className="text-xs font-medium text-slate-400">Students</span></span>
+            {liveFaculty.length > 0 && <span className="text-xs text-violet-500 font-bold">+{liveFaculty.length} Faculty</span>}
           </div>
         </div>
 
@@ -565,75 +604,144 @@ export const AdminPanel = ({ questions, onAddQuestion, onDeleteQuestion, onAppro
 
       {/* TAB 2: STUDENTS ROSTER */}
       {activeAdminTab === 'students' && (
-        <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md space-y-6 animate-fadeIn">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                  Registered Student Roster ({studentsList.length} Students)
-                </h3>
-                <p className="text-xs text-slate-500">All students registered from any device — live synced</p>
+        <div className="space-y-6 animate-fadeIn">
+
+          {/* Live New Entry Alert */}
+          {newEntryAlert && (
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900">
+              <Bell className="w-5 h-5 text-emerald-600 dark:text-emerald-400 animate-bounce flex-shrink-0" />
+              <div className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                🎉 New {newEntryAlert.type === 'faculty' ? 'Faculty' : 'Student'} Registered: <span className="font-extrabold">{newEntryAlert.name}</span>
               </div>
-              <button
-                onClick={refreshStudents}
-                disabled={studentLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-900 text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:bg-indigo-100 transition disabled:opacity-50"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${studentLoading ? 'animate-spin' : ''}`} />
-                {studentLoading ? 'Syncing...' : 'Refresh'}
-              </button>
+            </div>
+          )}
+
+          <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-start justify-between gap-4 w-full">
+                <div>
+                  <h3 className="text-lg font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                    Registered Student Roster ({studentsList.length} Students)
+                  </h3>
+                  <p className="text-xs text-slate-500">All students registered from any device — live synced every 5s</p>
+                </div>
+                <button
+                  onClick={refreshStudents}
+                  disabled={studentLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-900 text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:bg-indigo-100 transition disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${studentLoading ? 'animate-spin' : ''}`} />
+                  {studentLoading ? 'Syncing...' : 'Refresh'}
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase font-bold text-[10px]">
+                    <th className="py-3 px-4">Student Name</th>
+                    <th className="py-3 px-4">College / University</th>
+                    <th className="py-3 px-4">Tests Solved</th>
+                    <th className="py-3 px-4">XP Level</th>
+                    <th className="py-3 px-4">Accuracy</th>
+                    <th className="py-3 px-4">Certificate Status</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                  {studentsList.map((student) => (
+                    <tr key={student.id} className="hover:bg-slate-50 dark:hover:bg-slate-950/50">
+                      <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100">
+                        {student.name} <span className="text-[11px] text-slate-400 font-normal">({student.username})</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">{student.college}</td>
+                      <td className="py-3.5 px-4 font-bold text-indigo-600 dark:text-indigo-400">{student.testsSolved} Tests</td>
+                      <td className="py-3.5 px-4 font-extrabold text-amber-500">{student.xp} XP</td>
+                      <td className="py-3.5 px-4 font-bold text-emerald-600 dark:text-emerald-400">{student.accuracy}%</td>
+                      <td className="py-3.5 px-4">
+                        {student.certUnlocked ? (
+                          <span className="px-2 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 flex items-center gap-1 w-fit">
+                            <CheckCircle2 className="w-3 h-3" /> Unlocked
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900 flex items-center gap-1 w-fit">
+                            <Lock className="w-3 h-3" /> In Progress
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          onClick={() => handleRemoveStudent(student.id, student.name)}
+                          className="px-2.5 py-1 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900 transition text-[11px] font-bold inline-flex items-center gap-1"
+                          title="Remove Student Record"
+                        >
+                          <UserX className="w-3.5 h-3.5" /> Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase font-bold text-[10px]">
-                  <th className="py-3 px-4">Student Name</th>
-                  <th className="py-3 px-4">College / University</th>
-                  <th className="py-3 px-4">Tests Solved</th>
-                  <th className="py-3 px-4">XP Level</th>
-                  <th className="py-3 px-4">Accuracy</th>
-                  <th className="py-3 px-4">Certificate Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                {studentsList.map((student) => (
-                  <tr key={student.id} className="hover:bg-slate-50 dark:hover:bg-slate-950/50">
-                    <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100">
-                      {student.name} <span className="text-[11px] text-slate-400 font-normal">({student.username})</span>
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">{student.college}</td>
-                    <td className="py-3.5 px-4 font-bold text-indigo-600 dark:text-indigo-400">{student.testsSolved} Tests</td>
-                    <td className="py-3.5 px-4 font-extrabold text-amber-500">{student.xp} XP</td>
-                    <td className="py-3.5 px-4 font-bold text-emerald-600 dark:text-emerald-400">{student.accuracy}%</td>
-                    <td className="py-3.5 px-4">
-                      {student.certUnlocked ? (
-                        <span className="px-2 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 flex items-center gap-1 w-fit">
-                          <CheckCircle2 className="w-3 h-3" /> Unlocked
-                        </span>
-                      ) : (
-                        <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900 flex items-center gap-1 w-fit">
-                          <Lock className="w-3 h-3" /> In Progress
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => handleRemoveStudent(student.id, student.name)}
-                        className="px-2.5 py-1 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900 transition text-[11px] font-bold inline-flex items-center gap-1"
-                        title="Remove Student Record"
-                      >
-                        <UserX className="w-3.5 h-3.5" /> Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* Faculty Roster */}
+          <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md space-y-4">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+              <div>
+                <h3 className="text-lg font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <GraduationCap className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                  Faculty Members ({liveFaculty.length} Registered)
+                </h3>
+                <p className="text-xs text-slate-500">Auto-updates when faculty logs into the Faculty Portal</p>
+              </div>
+            </div>
+
+            {liveFaculty.length === 0 ? (
+              <div className="py-10 text-center">
+                <GraduationCap className="w-8 h-8 text-slate-300 dark:text-slate-700 mx-auto mb-2" />
+                <p className="text-sm text-slate-400">No faculty registered yet.</p>
+                <p className="text-xs text-slate-500 mt-1">Faculty members will appear here automatically when they log in at the Faculty Portal.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase font-bold text-[10px]">
+                      <th className="py-3 px-4">Faculty Name</th>
+                      <th className="py-3 px-4">Department</th>
+                      <th className="py-3 px-4">Last Login</th>
+                      <th className="py-3 px-4">Role</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {liveFaculty.map((faculty, idx) => (
+                      <tr key={faculty.id || idx} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300 font-extrabold text-[10px] flex items-center justify-center">
+                              {faculty.name?.substring(0, 2).toUpperCase() || 'F'}
+                            </div>
+                            <span className="font-bold text-slate-800 dark:text-slate-200">{faculty.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-slate-500">{faculty.department || '—'}</td>
+                        <td className="py-3 px-4 text-slate-500">{faculty.lastLogin || '—'}</td>
+                        <td className="py-3 px-4">
+                          <span className="px-2 py-0.5 rounded-lg bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300 font-bold text-[10px]">
+                            Faculty
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
+
         </div>
       )}
 

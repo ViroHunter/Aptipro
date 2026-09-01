@@ -20,6 +20,7 @@ import { FacultyAuthModal } from './components/Faculty/FacultyAuthModal';
 import { QUESTIONS as INITIAL_QUESTIONS, generateDynamicQuestion } from './data/questionsData';
 import { useApp } from './context/AppContext';
 import { Sparkles, ShieldCheck, GraduationCap, Lock } from 'lucide-react';
+import { registerFacultyLogin } from './utils/cloudSecurityService';
 
 // Detect secret portal param from URL (?portal=admin or ?portal=faculty)
 function getPortalParam() {
@@ -260,6 +261,8 @@ export function App() {
             setIsFacultyAuth(true);
             setFacultyUser(details);
             setIsFacultyAuthOpen(false);
+            // Auto-register faculty in admin panel roster
+            registerFacultyLogin(details);
           }}
         />
       </div>
